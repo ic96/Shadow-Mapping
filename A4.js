@@ -31,7 +31,7 @@ var depthScene = new THREE.Scene(); // shadowmap
 var finalScene = new THREE.Scene(); // final result
 
 // Main camera 
-var camera = new THREE.PerspectiveCamera(30, 1, 0.1, 1000); // view angle, aspect ratio, near, far
+var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000); // view angle, aspect ratio, near, far
 camera.position.set(0,10,20);
 camera.lookAt(finalScene.position);
 finalScene.add(camera);
@@ -98,13 +98,18 @@ var shadowMap = new THREE.WebGLRenderTarget(shadowMapWidth, shadowMapHeight, { m
 // Loading the different textures 
 // Anisotropy allows the texture to be viewed 'decently' at different angles
 var colorMap = new THREE.TextureLoader().load('images/color.jpg')
+var ufoMap = new THREE.TextureLoader().load('images/ufo.png')
 colorMap.anisotropy = renderer.getMaxAnisotropy()
 var normalMap = new THREE.TextureLoader().load('images/normal.png')
 normalMap.anisotropy = renderer.getMaxAnisotropy()
+var ufoAoMap = new THREE.TextureLoader().load('images/ufo_normal.png')
 var aoMap = new THREE.TextureLoader().load('images/ambient_occlusion.png')
 aoMap.anisotropy = renderer.getMaxAnisotropy()
 
 // Uniforms
+var asteroidUniform = {type: 'v3', value: new THREE.Vector3(0, 0, 0)}
+var ufoPositionUniform = {type: 'v3', value: new THREE.Vector3(0, 0, 0)}
+var armadilloPositionUniform = {type: 'v3', value: new THREE.Vector3(0, 0, 0)}
 var cameraPositionUniform = {type: "v3", value: camera.position }
 var lightColorUniform = {type: "c", value: new THREE.Vector3(1.0, 1.0, 1.0) };
 var ambientColorUniform = {type: "c", value: new THREE.Vector3(1.0, 1.0, 1.0) };
@@ -118,6 +123,45 @@ var lightProjectMatrixUniform = {type: "m4", value: lightCamera.projectionMatrix
 
 // Materials
 var depthMaterial = new THREE.ShaderMaterial({})
+
+var asteroidMaterial = new THREE.ShaderMaterial({
+    // side: THREE.DoubleSide,
+    uniforms:{
+        asteroidUniform: asteroidUniform,
+        lightColorUniform: lightColorUniform,
+        ambientColorUniform: ambientColorUniform,
+        lightDirectionUniform: lightDirectionUniform,
+        kAmbientUniform: kAmbientUniform,
+        kDiffuseUniform: kDiffuseUniform,
+        kSpecularUniform, kSpecularUniform,
+        shininessUniform: shininessUniform,
+        colorMap: { type: "t", value: colorMap },
+        normalMap: { type: "t", value: normalMap },
+        aoMap: { type: "t", value: aoMap },
+        shadowMap: { type: "t", value: shadowMap },
+        lightViewMatrixUniform: lightViewMatrixUniform,
+        lightProjectMatrixUniform: lightProjectMatrixUniform
+    },
+});
+
+var imperialMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        ufoPositionUniform: ufoPositionUniform,
+        lightColorUniform: lightColorUniform,
+        ambientColorUniform: ambientColorUniform,
+        lightDirectionUniform: lightDirectionUniform,
+        kAmbientUniform: kAmbientUniform,
+        kDiffuseUniform: kDiffuseUniform,
+        kSpecularUniform, kSpecularUniform,
+        shininessUniform: shininessUniform,
+        ufoMap: { type: "t", value: ufoMap },
+        normalMap: { type: "t", value: normalMap },
+        ufoAoMap: { type: "t", value: ufoAoMap },
+        shadowMap: { type: "t", value: shadowMap },
+        lightViewMatrixUniform: lightViewMatrixUniform,
+        lightProjectMatrixUniform: lightProjectMatrixUniform
+    },
+})
 
 var terrainMaterial = new THREE.ShaderMaterial({
   // side: THREE.DoubleSide,
@@ -140,6 +184,7 @@ var terrainMaterial = new THREE.ShaderMaterial({
 
 var armadilloMaterial = new THREE.ShaderMaterial({
   uniforms: {
+      armadilloPositionUniform: armadilloPositionUniform,
     lightColorUniform: lightColorUniform,
     ambientColorUniform: ambientColorUniform,
     lightDirectionUniform: lightDirectionUniform,
@@ -153,9 +198,9 @@ var armadilloMaterial = new THREE.ShaderMaterial({
 var skyboxCubemap = new THREE.CubeTextureLoader()
   .setPath( 'images/cubemap/' )
   .load( [
-  'cube1.png', 'cube2.png',
-  'cube3.png', 'cube4.png',
-  'cube5.png', 'cube6.png'
+  'lightSpeed.jpg', 'lightSpeed.jpg',
+  'lightSpeed.jpg', 'lightSpeed.jpg',
+  'lightSpeed.jpg', 'lightSpeed.jpg'
   ] );
 
 var skyboxMaterial = new THREE.ShaderMaterial({
@@ -178,18 +223,28 @@ var shaderFiles = [
   'glsl/bphong.fs.glsl',
 
   'glsl/skybox.vs.glsl',
-  'glsl/skybox.fs.glsl'
+  'glsl/skybox.fs.glsl',
+
+    'glsl/asteroid.vs.glsl',
+    'glsl/asteroid.fs.glsl',
+
+    'glsl/ufo.vs.glsl',
+    'glsl/ufo.fs.glsl'
 ];
 
 new THREE.SourceLoader().load(shaderFiles, function(shaders) {
 	depthMaterial.vertexShader = shaders['glsl/depth.vs.glsl']
 	depthMaterial.fragmentShader = shaders['glsl/depth.fs.glsl']
 	terrainMaterial.vertexShader = shaders['glsl/terrain.vs.glsl']
-	terrainMaterial.fragmentShader = shaders['glsl/terrain.fs.glsl']	
+	terrainMaterial.fragmentShader = shaders['glsl/terrain.fs.glsl']
+    imperialMaterial.vertexShader = shaders['glsl/ufo.vs.glsl']
+    imperialMaterial.fragmentShader = shaders['glsl/ufo.fs.glsl']
 	armadilloMaterial.vertexShader = shaders['glsl/bphong.vs.glsl']
 	armadilloMaterial.fragmentShader = shaders['glsl/bphong.fs.glsl']
 	skyboxMaterial.vertexShader = shaders['glsl/skybox.vs.glsl']	
 	skyboxMaterial.fragmentShader = shaders['glsl/skybox.fs.glsl']
+    asteroidMaterial.vertexShader = shaders['glsl/asteroid.vs.glsl']
+    asteroidMaterial.fragmentShader = shaders['glsl/asteroid.fs.glsl']
 })
 
 // LOAD OBJ ROUTINE
@@ -225,26 +280,52 @@ function loadOBJ(scene, file, material, scale, xOff, yOff, zOff, xRot, yRot, zRo
 
 // -------------------------------
 // ADD OBJECTS TO THE SCENE
-var skyboxGeometry = new THREE.CubeGeometry(100,100,100)
+var skyboxGeometry = new THREE.CubeGeometry(1000,1000,1000)
 var skyboxMesh = new THREE.Mesh(skyboxGeometry,skyboxMaterial)
 var terrainGeometry = new THREE.PlaneBufferGeometry(10, 10);
 var terrain = new THREE.Mesh(terrainGeometry, terrainMaterial)
 terrain.rotation.set(-1.57, 0, 0)
 finalScene.add(skyboxMesh);
-finalScene.add(terrain)
 var terrainDO = new THREE.Mesh(terrainGeometry, depthMaterial)
 terrainDO.rotation.set(-1.57, 0, 0)
 depthScene.add(terrainDO)
 
-
-loadOBJ(finalScene, 'obj/armadillo.obj', armadilloMaterial, 1.0, 0, 1.0, 0, 0, 0, 0)
+loadOBJ(finalScene, 'obj/asteroid.obj', asteroidMaterial, 0.15, 0, 3.0, -100.0, 0, 0, 0)
+loadOBJ(finalScene, 'obj/asteroid.obj', asteroidMaterial, 0.15, -15.0, 3.0, -75.0, 0, 0, 0)
+loadOBJ(finalScene, 'obj/asteroid.obj', asteroidMaterial, 0.15, 15.0, 3.0, -50.0, 0, 0, 0)
+loadOBJ(finalScene, 'obj/UFO.obj', imperialMaterial, 0.15, 0, -3.0, 0, 0, 0, 0);
+loadOBJ(finalScene, 'obj/armadillo.obj', armadilloMaterial, 1.0, 0, 3.7, 0, 0, 0, 0)
 loadOBJ(depthScene, 'obj/armadillo.obj', depthMaterial, 1.0, 0, 1.0, 0, 0, 0, 0)
 
 // -------------------------------
 // UPDATE ROUTINES
 var keyboard = new THREEx.KeyboardState();
+var gameOver = false;
+function resetAsteroids(){
+    if(asteroidUniform.value.z > 1000){
+        asteroidUniform.value.z = -100;
+        asteroidUniform.value.x = THREE.Math.randFloat(-50.0,50.0);
+    }
+    if(gameOver === false) {
+        asteroidUniform.value.z += 7.0;
+    }
+}
 
-function checkKeyboard() { }
+
+function isGameOver(){
+    if(asteroidUniform.value.z === ufoPositionUniform.value.z && ((Math.abs(ufoPositionUniform.value.x - asteroidUniform.value.x)) <= 10.0)){
+        gameOver = true;
+    }
+}
+function checkKeyboard() {
+
+    if (keyboard.pressed("A"))
+        armadilloPositionUniform.value.x -= 0.15,
+        ufoPositionUniform.value.x -= 1.0;
+    else if (keyboard.pressed("D"))
+        armadilloPositionUniform.value.x += 0.15,
+        ufoPositionUniform.value.x += 1.0;
+}
 
 function updateMaterials() {
 	cameraPositionUniform.value = camera.position
@@ -253,12 +334,16 @@ function updateMaterials() {
 	terrainMaterial.needsUpdate = true
 	armadilloMaterial.needsUpdate = true
 	skyboxMaterial.needsUpdate = true
+    imperialMaterial.needsUpdate = true;
+	asteroidMaterial.needsUpdate = true;
 }
 
 // Update routine
 function update() {
 	checkKeyboard()
 	updateMaterials()
+    resetAsteroids()
+    isGameOver()
 
 	requestAnimationFrame(update)
 	renderer.render(depthScene, lightCamera, shadowMap)
